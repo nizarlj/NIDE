@@ -453,7 +453,7 @@ local function setCursor(ncx, ncy)
         for index, text in pairs(colorBuffer[cy]) do
             if index > 1 and text["start"] >= scrollX then
                 if text["end"] >= bcx then
-                    gpu.setForeground(cursorColor)
+                    gpu.setForeground(text["color"])
                     gpu.set(bcx + xOffset, bcy + yOffset, string.sub(colorBuffer[cy][1], bcx, bcx))
                     break
                 end
