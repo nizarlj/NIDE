@@ -223,7 +223,7 @@ local scrollX, scrollY = 1, 0
 local config = loadConfig()
 local currentDirectory = "/"
 local openFiles = {nil}
-local navbarButtons = {}
+local navbars = {}
 local screen = "editor"
 local explorerItemsAmountHorizontal = 5
 local explorerItemsAmountVertical = 4
@@ -296,38 +296,47 @@ local function sortedDir(path)
 end
 
 
-local function addButton(options)
-    options["text"]            = options["text"] or "undefined"
-    options["dropdown"]        = options["dropdown"] or {}
-    options["callback"]        = options["callback"] or nil
-    options["alignment"]       = options["alignment"] or "left"
-    options["foregroundColor"] = options["foregroundColor"] or textColor
-    options["backgroundColor"] = options["backgroundColor"] or panelColor
-
-
-    table.insert(navbarButtons, options)
+local function createNavbar(navbarName, options)
+  options = options or { ["x"] = 1, ["y"] = 1, ["w"] = w, ["h"] = panelHeight}
+  options["buttons"] = {}
+  navbars[navbarName] = options
 end
 
--- draw the explorer / file system
-local function drawNavbar()
+
+local function createButton(navbarName, options)
+  options = options or {}
+  options["text"]            = options["text"] or "undefined"
+  options["dropdown"]        = options["dropdown"] or {}
+  options["callback"]        = options["callback"] or nil
+  options["alignment"]       = options["alignment"] or "left"
+  options["foregroundColor"] = options["foregroundColor"] or textColor
+  options["backgroundColor"] = options["backgroundColor"] or panelColor
+
+
+  table.insert(navbars[navbarName]["buttons"], options)
+end
+
+-- draw any navbar
+local function drawNavbar(navbarName)
     -- panels
     gpu.setBackground(panelColor)
     gpu.fill(1, 1, w, panelHeight, " ")
 
     gpu.setForeground(textColor)
-    local buttonXLeft = 1
-    local buttonXRight = w + 1
+    local navbar = navbars[navbarName]
+    local buttonXLeft = navbar["x"]
+    local buttonXRight = navbar["w"] + 1
 
-    for _, button in pairs(navbarButtons) do
+    for _, button in pairs(navbar["buttons"]) do
         gpu.setForeground(button["foregroundColor"])
         gpu.setBackground(button["backgroundColor"])
 
         if button["alignment"] == "left" then
-            gpu.set(buttonXLeft, 1, button["text"])
+            gpu.set(buttonXLeft, navbar["y"], button["text"])
             buttonXLeft = buttonXLeft + unicode.len(button["text"]) + 1
         else
             buttonXRight = buttonXRight - unicode.len(button["text"])
-            gpu.set(buttonXRight, 1, button["text"])
+            gpu.set(buttonXRight, navbar["y"], button["text"])
             buttonXRight = buttonXRight - 1
         end
     end
@@ -853,12 +862,13 @@ local function handleTouch(touchX, touchY)
     touchX = tonumber(touchX)
     touchY = tonumber(touchY)
 
-    local buttonXLeft = 1
-    local buttonXRight = w + 1
+    local navbar = navbars["NIDE"]
+    local buttonXLeft = navbar["x"]
+    local buttonXRight = navbar["w"] + 1
 
-    for _, button in pairs(navbarButtons) do
+    for _, button in pairs(navbar["buttons"]) do
         if button["alignment"] == "left" then
-            if touchX >= buttonXLeft and touchX <= buttonXLeft + unicode.len(button["text"]) and touchY >= 1 and touchY <= panelHeight then
+            if touchX >= buttonXLeft and touchX <= buttonXLeft + unicode.len(button["text"]) and touchY >= navbar["y"] and touchY <= navbar["h"] then
                 if #button["dropdown"] == 0 and button["callback"] ~= nil then
                     local callback = button["callback"]
                     callback('Jason')
@@ -868,7 +878,7 @@ local function handleTouch(touchX, touchY)
                 buttonXLeft = buttonXLeft + unicode.len(button["text"]) + 1
             end
         else
-            if touchX >= buttonXRight - unicode.len(button["text"]) and touchX <= buttonXRight and touchY >= 1 and touchY <= panelHeight then
+            if touchX >= buttonXRight - unicode.len(button["text"]) and touchX <= buttonXRight and touchY >= navbar["y"] and touchY <= navbar["h"] then
                 if #button["dropdown"] == 0 and button["callback"] ~= nil then
                     local callback = button["callback"]
                     callback('Jason')
@@ -901,7 +911,9 @@ local function handleTouch(touchX, touchY)
     return false
 end
 
-addButton({["text"] = "Explorer", ["callback"] = function() 
+createNavbar("NIDE")
+
+createButton("NIDE", {["text"] = "Explorer", ["callback"] = function() 
     screen = 'explorer' 
     term.setCursorBlink(false)
     -- setCursor(1, panelHeight + 1)
@@ -909,7 +921,7 @@ addButton({["text"] = "Explorer", ["callback"] = function()
     drawExplorer()
 end})
 
-addButton({["text"] = "X", ["alignment"] = "right", ["foregroundColor"] = 0xFFFFFF, ["backgroundColor"] = 0xFF0000,["callback"] = quit})
+createButton("NIDE", {["text"] = "X", ["alignment"] = "right", ["foregroundColor"] = 0xFFFFFF, ["backgroundColor"] = 0xFF0000,["callback"] = quit})
 
 gpu.setBackground(editorColor)
 term.clear()
@@ -919,7 +931,7 @@ if explorerPanel then
     xOffset = xOffset + panelWidth
 end
 
-drawNavbar()
+drawNavbar("NIDE")
 term.setCursor(xOffset + 1, yOffset + 1)
 loadFile()
 
