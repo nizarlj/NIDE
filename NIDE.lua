@@ -18,7 +18,7 @@ local lineNumberColor = 0x6699FF
 local editorColorHighlighted = 0x525252
 local lineNumberColorHighlighted = 0xC9C9C9
 local textColor = 0xCCCCCC
-local statusBarColor = 0x007ACC
+local accentColor = 0x007ACC
 
 local parentDirectoryColor = 0xFF3333
 local folderColor = 0xFFFF33
@@ -30,6 +30,9 @@ local stringColor = 0xFF3333
 local commentColor = 0x336600
 local operatorColor = 0xFFFFFF
 local valueColor = 0x6699FF
+
+local agreeColor = 0x33B600
+local disagreeColor = 0xFF3333
 
 local gpu = term.gpu()
 
@@ -218,6 +221,7 @@ end
 
 
 local running = true
+local popUpOptions = {}
 local buffer = {}
 local colorBuffer = {}
 local scrollX, scrollY = 1, 0
@@ -394,7 +398,7 @@ end
 
 -- draws status bar
 local function drawStatusBar(text)
-    gpu.setBackground(statusBarColor)
+    gpu.setBackground(accentColor)
     gpu.setForeground(textColor)
     gpu.fill(1, h, w, 1, " ")
     gpu.set(2, h, text .. string.rep(" ", w - unicode.len(text)))
@@ -433,7 +437,7 @@ local function setCursor(ncx, ncy)
     end
 
     term.setCursor(ncx, ncy)
-    drawStatusBar("cx: " .. cx .. ",cy: " .. cy .. ", #buffer: " .. #buffer .. ", gpuDepth: " .. gpu.maxDepth())
+    drawStatusBar("cx: " .. cx .. ",cy: " .. cy .. ", #buffer: " .. #buffer .. ", w: " ..w .. ", h: " .. h)
 end
 
 
@@ -662,11 +666,42 @@ local function save()
 end
 
 
-local function drawPopup(text) 
-    local text = text or "undefined"
-    screen = "popup"
+local function drawPopUp(options) 
+  local options = options or {}
+  options["text"] = options["text"] or "undefined"
+  options["description"] = options["description"] or "undefined"
+  options["agreeCallback"] = options["agreeCallback"] or function() end
+  options["disagreeCallback"] = options["disagreeCallback"] or function() end
+  options["closingCallback"] = options["closingCallback"] or function() end
+  screen = "popup"
 
-    -- local popUpX
+  local popUpW = math.min(math.max(unicode.len(options["text"]) + 2, 8), w)
+  local popUpH = math.min(panelHeight + 3, h) - 1
+  local popUpX = math.floor(w / 2 - popUpW / 2)
+  local popUpY = math.floor(h / 2 - popUpH / 2)
+
+  options["x"] = popUpX
+  options["y"] = popUpY
+  options["w"] = popUpW
+  options["h"] = popUpH
+  popUpOptions = options
+
+  term.setCursor(1, yOffset + 1)
+
+  gpu.setBackground(accentColor)
+  gpu.setForeground(textColor)
+  gpu.fill(popUpX, popUpY, popUpW, panelHeight, " ")
+  gpu.set(popUpX + 1, popUpY, options["text"])
+
+  gpu.setBackground(panelColor)
+  gpu.fill(popUpX, popUpY + 1, popUpW, popUpH, " ")
+
+  gpu.setBackground(agreeColor)
+  gpu.set(popUpX + math.floor(popUpW / 2) - 3, popUpY + 2, "Yes")
+  gpu.setBackground(disagreeColor)
+  gpu.set(popUpX + math.floor(popUpW / 2) + 2, popUpY + 2, "No")
+
+  gpu.setBackground(editorColor)
 end
 
 -- keybindings
@@ -721,7 +756,7 @@ local keyBindHandlers = {
         if openFiles[1] ~= nil then
             save()
         else
-            drawPopup()
+            drawPopUp()
         end
     end,
     toggleSyntaxHighlighting = function()
@@ -856,22 +891,7 @@ local function handleTouch(touchX, touchY)
     end
 
     if screen == "explorer" then
-        -- local dirs = sortedDir(currentDirectory)
-        -- for index = 1, math.min(#dirs, explorerItemsAmountHorizontal * explorerItemsAmountVertical + 1) do
-        --     local x = 1 + explorerItemWidth * ((index - 1) % explorerItemsAmountHorizontal)
-        --     local y = panelHeight + 3 + explorerItemHeight * ((math.floor((index - 1) / explorerItemsAmountHorizontal)))
-        --     if touchX > x and touchX < x + explorerItemWidth and touchY > y and touchY < y + explorerItemHeight - math.floor(explorerItemHeight / 4) then
-        --         if fs.isDirectory(dirs[index]) then
-        --             currentDirectory = dirs[index]
-        --             drawExplorer()
-        --         else
-        --             screen = "editor"
-        --             openFiles[1] = dirs[index]
-        --             loadFile(dirs[index])
-        --         end
-        --     end    
-        -- end
-        local dirs = sortedDir(currentDirectory)
+      local dirs = sortedDir(currentDirectory)
       for index = 1, math.min(#dirs, explorerItemsAmountHorizontal * explorerItemsAmountVertical + 1) do
 
         local x = 1 + explorerItemWidth * ((index - 1) % explorerItemsAmountHorizontal) + math.floor(explorerItemWidth / 4)
@@ -888,6 +908,18 @@ local function handleTouch(touchX, touchY)
         end
     
       end
+    elseif screen == "popup" then
+      if touchX >= popUpOptions["x"] + math.floor(popUpOptions["w"] / 2) - 3 and touchX < popUpOptions["x"] + math.floor(popUpOptions["w"] / 2) and touchY == popUpOptions["y"] + 2 then
+        local closingCallback = popUpOptions["closingCallback"]
+        local agreeCallback = popUpOptions["agreeCallback"]
+        agreeCallback('Jason')
+        closingCallback('Jason')
+      elseif touchX >= popUpOptions["x"] + math.floor(popUpOptions["w"] / 2) + 2 and touchX < popUpOptions["x"] + math.floor(popUpOptions["w"] / 2) + 4 and touchY == popUpOptions["y"] + 2 then
+        local closingCallback = popUpOptions["closingCallback"]
+        local disagreeCallback = popUpOptions["disagreeCallback"]
+        disagreeCallback('Jason')
+        closingCallback('Jason')
+      end
     end
 
     return false
@@ -903,7 +935,13 @@ createButton("NIDE", {["text"] = "Explorer", ["callback"] = function()
   drawExplorer()
 end})
 
-createButton("NIDE", {["text"] = "X", ["alignment"] = "right", ["foregroundColor"] = 0xFFFFFF, ["backgroundColor"] = 0xFF0000, ["callback"] = quit})
+createButton("NIDE", {["text"] = "X", ["alignment"] = "right", ["foregroundColor"] = 0xFFFFFF, ["backgroundColor"] = 0xFF0000, ["callback"] = function()
+  drawPopUp({["text"] = "Do you really want to close NIDE?", ["agreeCallback"] = quit, ["disagreeCallback"] = function()
+    screen = "editor"
+    setCursor(1, 1)
+    drawScreen()
+  end})
+end})
 
 
 createNavbar("Explorer", {["x"] = 2, ["y"] = panelHeight + 2, ["w"] = w - 2, ["h"] = panelHeight, ["screen"] = "explorer"})
@@ -911,8 +949,8 @@ createNavbar("Explorer", {["x"] = 2, ["y"] = panelHeight + 2, ["w"] = w - 2, ["h
 createButton("Explorer", {["text"] = "New"})
 createButton("Explorer", {["text"] = "X", ["alignment"] = "right", ["foregroundColor"] = 0xFFFFFF, ["backgroundColor"] = 0xFF0000, ["callback"] = function()
   screen = "editor"
-  drawScreen()
   setCursor(1, 1)
+  drawScreen()
 end})
 
 
