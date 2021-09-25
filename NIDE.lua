@@ -912,6 +912,7 @@ createButton("Explorer", {["text"] = "New"})
 createButton("Explorer", {["text"] = "X", ["alignment"] = "right", ["foregroundColor"] = 0xFFFFFF, ["backgroundColor"] = 0xFF0000, ["callback"] = function()
   screen = "editor"
   drawScreen()
+  setCursor(1, 1)
 end})
 
 
