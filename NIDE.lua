@@ -11,24 +11,25 @@ if not term.isAvailable() then
 end
 
 -- color palette 
+local navbarColor = 0x4B4B4B
 local panelColor = 0x2D2D2D
 local editorColor = 0x0F0F0F
-local lineNumberColor = 0x858585
+local lineNumberColor = 0x6699FF
 local editorColorHighlighted = 0x525252
 local lineNumberColorHighlighted = 0xC9C9C9
-local textColor = 0xC8C8C8
+local textColor = 0xCCCCCC
 local statusBarColor = 0x007ACC
 
-local parentDirectoryColor = 0xFF3838
-local folderColor = 0xF9FF85
-local fileColor = 0x85ACFF
+local parentDirectoryColor = 0xFF3333
+local folderColor = 0xFFFF33
+local fileColor = 0x6699FF
 
-local keywordColor = 0xC586C0
-local builtinColor = 0xFCFC9A
-local stringColor = 0xDB3D3D
-local commentColor = 0x698A35
+local keywordColor = 0xCC66CC
+local builtinColor = 0xFCFC9A --DCDCAA
+local stringColor = 0xFF3333
+local commentColor = 0x336600
 local operatorColor = 0xFFFFFF
-local valueColor = 0x569CD6
+local valueColor = 0x6699FF
 
 local gpu = term.gpu()
 
@@ -229,6 +230,7 @@ local explorerItemsAmountHorizontal = 5
 local explorerItemsAmountVertical = 4
 local applySyntaxHighlighting = true
 
+gpu.setResolution(80, 25)
 local w, h = gpu.getResolution()
 
 local panelWidth = math.floor(w/10)
@@ -297,8 +299,9 @@ end
 
 
 local function createNavbar(navbarName, options)
-  options = options or { ["x"] = 1, ["y"] = 1, ["w"] = w, ["h"] = panelHeight}
+  options = options or { ["x"] = 1, ["y"] = 1, ["w"] = w - 1, ["h"] = panelHeight}
   options["buttons"] = {}
+  options["screen"] = options["screen"]
   navbars[navbarName] = options
 end
 
@@ -310,7 +313,7 @@ local function createButton(navbarName, options)
   options["callback"]        = options["callback"] or nil
   options["alignment"]       = options["alignment"] or "left"
   options["foregroundColor"] = options["foregroundColor"] or textColor
-  options["backgroundColor"] = options["backgroundColor"] or panelColor
+  options["backgroundColor"] = options["backgroundColor"] or navbarColor
 
 
   table.insert(navbars[navbarName]["buttons"], options)
@@ -318,31 +321,31 @@ end
 
 -- draw any navbar
 local function drawNavbar(navbarName)
-    -- panels
-    gpu.setBackground(panelColor)
-    gpu.fill(1, 1, w, panelHeight, " ")
+  local navbar = navbars[navbarName]
 
-    gpu.setForeground(textColor)
-    local navbar = navbars[navbarName]
-    local buttonXLeft = navbar["x"]
-    local buttonXRight = navbar["w"] + 1
+  gpu.setForeground(textColor)
+  gpu.setBackground(navbarColor)
+  gpu.fill(navbar["x"], navbar["y"], navbar["w"], navbar["h"], " ")
 
-    for _, button in pairs(navbar["buttons"]) do
-        gpu.setForeground(button["foregroundColor"])
-        gpu.setBackground(button["backgroundColor"])
+  local buttonXLeft = navbar["x"]
+  local buttonXRight = navbar["w"] + 1
 
-        if button["alignment"] == "left" then
-            gpu.set(buttonXLeft, navbar["y"], button["text"])
-            buttonXLeft = buttonXLeft + unicode.len(button["text"]) + 1
-        else
-            buttonXRight = buttonXRight - unicode.len(button["text"])
-            gpu.set(buttonXRight, navbar["y"], button["text"])
-            buttonXRight = buttonXRight - 1
-        end
+  for _, button in pairs(navbar["buttons"]) do
+    gpu.setForeground(button["foregroundColor"])
+    gpu.setBackground(button["backgroundColor"])
+
+    if button["alignment"] == "left" then
+      gpu.set(buttonXLeft, navbar["y"], button["text"])
+      buttonXLeft = buttonXLeft + unicode.len(button["text"]) + 1
+    else
+      -- buttonXRight = buttonXRight - unicode.len(button["text"])
+      gpu.set(buttonXRight, navbar["y"], button["text"])
+      buttonXRight = buttonXRight - unicode.len(button["text"])
     end
+  end
 
-    gpu.setForeground(textColor)
-    gpu.setBackground(editorColor)
+  gpu.setForeground(textColor)
+  gpu.setBackground(editorColor)
 end
 
 
@@ -367,7 +370,7 @@ local function drawExplorer()
         end
 
         local x = 1 + explorerItemWidth * ((index - 1) % explorerItemsAmountHorizontal)
-        local y = panelHeight + 3 + explorerItemHeight * ((math.floor((index - 1) / explorerItemsAmountHorizontal)))
+        local y = panelHeight + 4 + explorerItemHeight * ((math.floor((index - 1) / explorerItemsAmountHorizontal)))
         gpu.fill(x + math.floor(explorerItemWidth / 4), y, explorerItemWidth - math.floor(explorerItemWidth / 4), explorerItemHeight - math.floor(explorerItemHeight / 4), " ")
 
         local dirName = dirs[index]:sub(#currentDirectory + 1)
@@ -378,50 +381,9 @@ local function drawExplorer()
     
     end
 
+    drawNavbar("Explorer")
     gpu.setBackground(editorColor)
 end
-
-
--- local function drawPanels(path)
---     -- panels
---     gpu.setBackground(panelColor)
---     gpu.fill(1, 1, w, panelHeight, " ")
-
---     if explorerPanel then
---         gpu.fill(1, 1, panelWidth, h, " ")
-    
---         -- draw parent directory, directories and finally files on top of the panels
---         path = (path or currentDirectory)
---         local dirs = sortedDir(path)
---         for index = 1, #dirs do
---         if index == 1 then
---             gpu.setForeground(parentDirectoryColor)
---             gpu.set(2, yOffset + index * 2 - 1, dirs[index]:sub(1, panelWidth - 2))
---         else
---             if fs.isDirectory(dirs[index]) then
---             gpu.setForeground(folderColor)
---             else 
---             gpu.setForeground(fileColor)
---             end
---             gpu.set(2, yOffset + index * 2 - 1, dirs[index]:sub(#path + 1):sub(1, panelWidth - 2))
---         end
---         end
---     end
-    
---     gpu.setForeground(textColor)
---     gpu.setBackground(editorColor)
--- end
-
-
--- local function checkExplorer(x, y)
---     local dirs = sortedDir(currentDirectory)
---     x = tonumber(x)
---     y = tonumber(y)
---     if x < panelWidth and y > yOffset and y < yOffset + #dirs * 2 then
---       return dirs[(y - math.floor(yOffset) + 1) / 2]
---     end
---     return false
--- end
 
 
 local function getArea()
@@ -459,11 +421,11 @@ local function setCursor(ncx, ncy)
 
     -- redraw character which the cursor was on because the cursor turns the color of a character back to while
     if colorBuffer[cy] and applySyntaxHighlighting then
-        for index, text in pairs(colorBuffer[cy]) do
+        for index, text in pairs(colorBuffer[bcy]) do
             if index > 1 and text["start"] >= scrollX then
                 if text["end"] >= bcx then
                     gpu.setForeground(text["color"])
-                    gpu.set(bcx + xOffset, bcy + yOffset, string.sub(colorBuffer[cy][1], bcx, bcx))
+                    gpu.set(bcx + xOffset, bcy + yOffset, string.sub(colorBuffer[bcy][1], bcx, bcx))
                     break
                 end
             end
@@ -471,7 +433,7 @@ local function setCursor(ncx, ncy)
     end
 
     term.setCursor(ncx, ncy)
-    drawStatusBar("cx: " .. cx .. ",cy: " .. cy .. ", #buffer: " .. #buffer)
+    drawStatusBar("cx: " .. cx .. ",cy: " .. cy .. ", #buffer: " .. #buffer .. ", gpuDepth: " .. gpu.maxDepth())
 end
 
 
@@ -862,50 +824,70 @@ local function handleTouch(touchX, touchY)
     touchX = tonumber(touchX)
     touchY = tonumber(touchY)
 
-    local navbar = navbars["NIDE"]
-    local buttonXLeft = navbar["x"]
-    local buttonXRight = navbar["w"] + 1
+    for _, navbar in pairs(navbars) do
+      if navbar["screen"] == screen or navbar["screen"] == nil then
+        local buttonXLeft = navbar["x"]
+        local buttonXRight = navbar["w"] + 1
 
-    for _, button in pairs(navbar["buttons"]) do
-        if button["alignment"] == "left" then
-            if touchX >= buttonXLeft and touchX <= buttonXLeft + unicode.len(button["text"]) and touchY >= navbar["y"] and touchY <= navbar["h"] then
-                if #button["dropdown"] == 0 and button["callback"] ~= nil then
-                    local callback = button["callback"]
-                    callback('Jason')
+        for _, button in pairs(navbar["buttons"]) do
+            if button["alignment"] == "left" then
+                if touchX >= buttonXLeft and touchX < buttonXLeft + unicode.len(button["text"]) and touchY >= navbar["y"] and touchY < navbar["y"] + navbar["h"] then
+                    if #button["dropdown"] == 0 and button["callback"] ~= nil then
+                        local callback = button["callback"]
+                        callback('Jason')
+                    end
+                    break
+                else
+                    buttonXLeft = buttonXLeft + unicode.len(button["text"]) + 1
                 end
-                break
             else
-                buttonXLeft = buttonXLeft + unicode.len(button["text"]) + 1
-            end
-        else
-            if touchX >= buttonXRight - unicode.len(button["text"]) and touchX <= buttonXRight and touchY >= navbar["y"] and touchY <= navbar["h"] then
-                if #button["dropdown"] == 0 and button["callback"] ~= nil then
-                    local callback = button["callback"]
-                    callback('Jason')
+                if touchX > buttonXRight - unicode.len(button["text"]) and touchX <= buttonXRight and touchY >= navbar["y"] and touchY < navbar["y"] + navbar["h"] then
+                    if #button["dropdown"] == 0 and button["callback"] ~= nil then
+                        local callback = button["callback"]
+                        callback('Jason')
+                    end
+                    break
+                else
+                    buttonXRight = buttonXRight - unicode.len(button["text"]) - 1
                 end
-                break
-            else
-                buttonXRight = buttonXRight - unicode.len(button["text"]) - 1
             end
         end
+      end
     end
 
     if screen == "explorer" then
+        -- local dirs = sortedDir(currentDirectory)
+        -- for index = 1, math.min(#dirs, explorerItemsAmountHorizontal * explorerItemsAmountVertical + 1) do
+        --     local x = 1 + explorerItemWidth * ((index - 1) % explorerItemsAmountHorizontal)
+        --     local y = panelHeight + 3 + explorerItemHeight * ((math.floor((index - 1) / explorerItemsAmountHorizontal)))
+        --     if touchX > x and touchX < x + explorerItemWidth and touchY > y and touchY < y + explorerItemHeight - math.floor(explorerItemHeight / 4) then
+        --         if fs.isDirectory(dirs[index]) then
+        --             currentDirectory = dirs[index]
+        --             drawExplorer()
+        --         else
+        --             screen = "editor"
+        --             openFiles[1] = dirs[index]
+        --             loadFile(dirs[index])
+        --         end
+        --     end    
+        -- end
         local dirs = sortedDir(currentDirectory)
-        for index = 1, math.min(#dirs, explorerItemsAmountHorizontal * explorerItemsAmountVertical + 1) do
-            local x = 1 + explorerItemWidth * ((index - 1) % explorerItemsAmountHorizontal)
-            local y = panelHeight + 3 + explorerItemHeight * ((math.floor((index - 1) / explorerItemsAmountHorizontal)))
-            if touchX > x + math.floor(explorerItemWidth / 4) and touchX < x + explorerItemWidth - math.floor(explorerItemWidth / 4) and touchY > y and touchY < y + explorerItemHeight - math.floor(explorerItemHeight / 4) then
-                if fs.isDirectory(dirs[index]) then
-                    currentDirectory = dirs[index]
-                    drawExplorer()
-                else
-                    screen = "editor"
-                    openFiles[1] = dirs[index]
-                    loadFile(dirs[index])
-                end
-            end    
+      for index = 1, math.min(#dirs, explorerItemsAmountHorizontal * explorerItemsAmountVertical + 1) do
+
+        local x = 1 + explorerItemWidth * ((index - 1) % explorerItemsAmountHorizontal) + math.floor(explorerItemWidth / 4)
+        local y = panelHeight + 4 + explorerItemHeight * ((math.floor((index - 1) / explorerItemsAmountHorizontal)))
+        if touchX >= x and touchX < x + explorerItemWidth - math.floor(explorerItemWidth / 4) and touchY >= y and touchY < y + explorerItemHeight - math.floor(explorerItemHeight / 4) then
+          if fs.isDirectory(dirs[index]) then
+            currentDirectory = dirs[index]
+            drawExplorer()
+          else
+            screen = "editor"
+            openFiles[1] = dirs[index]
+            loadFile(dirs[index])
+          end
         end
+    
+      end
     end
 
     return false
@@ -914,21 +896,31 @@ end
 createNavbar("NIDE")
 
 createButton("NIDE", {["text"] = "Explorer", ["callback"] = function() 
-    screen = 'explorer' 
-    term.setCursorBlink(false)
-    -- setCursor(1, panelHeight + 1)
-    term.setCursor(1, yOffset + 1)
-    drawExplorer()
+  screen = 'explorer' 
+  term.setCursorBlink(false)
+  -- setCursor(1, panelHeight + 1)
+  term.setCursor(1, yOffset + 1)
+  drawExplorer()
 end})
 
-createButton("NIDE", {["text"] = "X", ["alignment"] = "right", ["foregroundColor"] = 0xFFFFFF, ["backgroundColor"] = 0xFF0000,["callback"] = quit})
+createButton("NIDE", {["text"] = "X", ["alignment"] = "right", ["foregroundColor"] = 0xFFFFFF, ["backgroundColor"] = 0xFF0000, ["callback"] = quit})
+
+
+createNavbar("Explorer", {["x"] = 2, ["y"] = panelHeight + 2, ["w"] = w - 2, ["h"] = panelHeight, ["screen"] = "explorer"})
+
+createButton("Explorer", {["text"] = "New"})
+createButton("Explorer", {["text"] = "X", ["alignment"] = "right", ["foregroundColor"] = 0xFFFFFF, ["backgroundColor"] = 0xFF0000, ["callback"] = function()
+  screen = "editor"
+  drawScreen()
+end})
+
 
 gpu.setBackground(editorColor)
 term.clear()
 term.setCursorBlink(true)
 
 if explorerPanel then
-    xOffset = xOffset + panelWidth
+  xOffset = xOffset + panelWidth
 end
 
 drawNavbar("NIDE")
